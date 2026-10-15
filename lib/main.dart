@@ -46,12 +46,14 @@ class _OptimizerHomeScreenState extends State<OptimizerHomeScreen> {
   String _selectedResolution = '720p';
 
   VideoPlayerController? _videoController;
+  final TextEditingController _captionController = TextEditingController(); // Tugas 2: Controller caption
   RangeValues _trimRange = const RangeValues(0, 1);
   double _totalDurationInSeconds = 1;
 
   @override
   void dispose() {
     _videoController?.dispose();
+    _captionController.dispose();
     super.dispose();
   }
 
@@ -75,6 +77,7 @@ class _OptimizerHomeScreenState extends State<OptimizerHomeScreen> {
       setState(() {
         _inputPath = selectedPath;
         _outputPath = null;
+        _captionController.clear();
         _videoController = controller;
         _totalDurationInSeconds = duration > 0 ? duration : 1.0;
         _trimRange = RangeValues(0, _totalDurationInSeconds);
@@ -100,17 +103,14 @@ class _OptimizerHomeScreenState extends State<OptimizerHomeScreen> {
       _statusText = 'Sedang mengoptimalkan & menajamkan video...';
     });
 
-    final String dir = File(_inputPath!).parent.path;
+    final String dir = Directory.systemTemp.path;
     final String timestamp = DateTime.now().millisecondsSinceEpoch.toString();
     final String outPath = '$dir/WA_Pure_$timestamp.mp4';
 
     final double start = _trimRange.start;
     final double duration = _trimRange.end - _trimRange.start;
 
-    // Formula rahasia PureStatus: 
-    // Resolusi pas 720x1280 (portrait), framerate 30fps, 
-    // filter unsharp (menajamkan tekstur), H.264 Baseline/Main profile,
-    // dan bitrate terkontrol (~1.4 Mbps) agar lolos kompresi WhatsApp.
+    // Formula Asli Bawaan Kamu
     final String ffmpegCommand =
         '-y -ss $start -t $duration -i "$_inputPath" '
         '-vf "scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,unsharp=5:5:0.8:5:5:0.0" '
@@ -137,11 +137,13 @@ class _OptimizerHomeScreenState extends State<OptimizerHomeScreen> {
     });
   }
 
+  // Tugas 2: Mengirim video beserta caption teks
   void _shareVideo() {
     if (_outputPath != null) {
+      final String caption = _captionController.text.trim();
       Share.shareXFiles(
         [XFile(_outputPath!)],
-        text: 'Josjis',
+        text: caption.isNotEmpty ? caption : null,
       );
     }
   }
@@ -227,7 +229,7 @@ class _OptimizerHomeScreenState extends State<OptimizerHomeScreen> {
               const SizedBox(height: 16),
             ],
 
-            // Slider Pemotong Durasi Video (Muncul jika video sudah dipilih)
+            // Slider Pemotong Durasi Video
             if (_videoController != null && _videoController!.value.isInitialized) ...[
               Container(
                 padding: const EdgeInsets.all(16),
@@ -302,10 +304,28 @@ class _OptimizerHomeScreenState extends State<OptimizerHomeScreen> {
                 ],
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
 
-            // Tombol Kirim ke WhatsApp (Muncul otomatis setelah sukses kompres)
+            // Tugas 2: Input Caption & Tombol Kirim ke WhatsApp
             if (_outputPath != null) ...[
+              TextField(
+                controller: _captionController,
+                maxLines: 2,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  hintText: 'Tulis caption video di sini (opsional)...',
+                  hintStyle: const TextStyle(color: Colors.white38),
+                  prefixIcon: const Icon(Icons.edit_note, color: Color(0xFF25D366)),
+                  filled: true,
+                  fillColor: const Color(0xFF1E293B),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                ),
+              ),
+              const SizedBox(height: 12),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
